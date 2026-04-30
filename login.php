@@ -1,27 +1,41 @@
 <?php
 session_start();
+
+
+if (isset($_SESSION['user_id'])) {
+    if ($_SESSION['user_type'] === 'admin') {
+        header('Location: admin.php');
+    } else {
+        header('Location: booking.php');
+    }
+    exit;
+}
+
 require 'db.php';
 
 $error = '';
-$success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $first  = trim($_POST['first_name']);
-    $last   = trim($_POST['last_name']);
-    $email  = trim($_POST['email']);
-    $user   = trim($_POST['username']);
-    $pass   = $_POST['password'];
+    $username = trim($_POST['username']);
+    $password = trim($_POST['password']);
 
-    // Check if username already exists
-    $check = $pdo->prepare("SELECT id FROM users WHERE username = ?");
-    $check->execute([$user]);
-    if ($check->fetch()) {
-        $error = 'Username already taken.';
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+    $stmt->execute([$username]);
+    $user = $stmt->fetch();
+
+    if ($user && password_verify($password, $user['password'])) {
+        $_SESSION['user_id']   = $user['id'];
+        $_SESSION['user_type'] = $user['type'];
+        $_SESSION['user_name'] = $user['first_name'];
+
+        if ($user['type'] === 'admin') {
+            header('Location: admin.php');
+        } else {
+            header('Location: booking.php');
+        }
+        exit;
     } else {
-        $hash = password_hash($pass, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT INTO users (type, first_name, last_name, username, password, email) VALUES ('customer', ?, ?, ?, ?, ?)");
-        $stmt->execute([$first, $last, $user, $hash, $email]);
-        $success = 'Account created! You can now login.';
+        $error = 'Invalid username or password.';
     }
 }
 ?>
@@ -29,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Register | Fine Lines Lawn Care</title>
+    <title>Login | Fine Lines Lawn Care</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
@@ -45,6 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto align-items-lg-center">
                 <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="lawn-mowing.html">Lawn Mowing</a></li>
+                <li class="nav-item"><a class="nav-link" href="hedge-trimming.html">Hedge Trimming</a></li>
+                <li class="nav-item"><a class="nav-link" href="snow-plowing.html">Snow Plowing</a></li>
                 <li class="nav-item"><a class="nav-link" href="booking.php">Book Now</a></li>
                 <li class="nav-item ms-lg-2"><a class="btn btn-success btn-sm" href="login.php">Login</a></li>
             </ul>
@@ -54,31 +71,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <div class="container my-5">
     <div class="row">
-        <div class="col-md-6 mx-auto">
-            <h2 class="text-center mb-4">Create an Account</h2>
+        <div class="col-md-5 mx-auto">
+            <h2 class="text-center mb-4">Login</h2>
 
             <?php if ($error): ?>
                 <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
             <?php endif; ?>
-            <?php if ($success): ?>
-                <div class="alert alert-success"><?= htmlspecialchars($success) ?> <a href="login.php">Login</a></div>
-            <?php endif; ?>
 
             <form method="POST">
-                <div class="row mb-3">
-                    <div class="col">
-                        <label class="form-label">First Name</label>
-                        <input type="text" name="first_name" class="form-control" required>
-                    </div>
-                    <div class="col">
-                        <label class="form-label">Last Name</label>
-                        <input type="text" name="last_name" class="form-control" required>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" required>
-                </div>
                 <div class="mb-3">
                     <label class="form-label">Username</label>
                     <input type="text" name="username" class="form-control" required>
@@ -87,10 +87,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label class="form-label">Password</label>
                     <input type="password" name="password" class="form-control" required>
                 </div>
-                <button type="submit" class="btn btn-primary w-100">Register</button>
+                <button type="submit" class="btn btn-primary w-100">Login</button>
             </form>
 
-            <p class="text-center mt-3">Already have an account? <a href="login.php">Login here</a></p>
+            <p class="text-center mt-3">Don't have an account? <a href="register.php">Register here</a></p>
         </div>
     </div>
 </div>
